@@ -1,10 +1,9 @@
-import { useState, FormEvent } from "react";
+import { useState, useEffect, FormEvent } from "react";
 import { Layout } from "@/shared/components/Layout";
-import { createTransaction, loadTransactions } from "./transactionStore";
+import { transactionsAPI } from "@/shared/services/api";
 import { formatCurrency } from "@/shared/utils/currency";
 import { formatDate } from "@/shared/utils/date";
 import type {
-  Transaction,
   TransactionCategory,
   PaymentMethod,
   CurrencyCode
@@ -12,9 +11,10 @@ import type {
 
 export function Transactions() {
   const [showForm, setShowForm] = useState(false);
-  const [transactions, setTransactions] = useState<Transaction[]>(
-    loadTransactions()
-  );
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   const [transactionType, setTransactionType] = useState<"income" | "expense">(
     "expense"
@@ -25,7 +25,7 @@ export function Transactions() {
     amount: "",
     currency: "USD" as CurrencyCode,
     category: "expense_food" as TransactionCategory,
-    paymentMethod: "cash" as PaymentMethod,
+    payment_method: "cash" as PaymentMethod,
     notes: ""
   });
 
@@ -59,35 +59,84 @@ export function Transactions() {
     { value: "expense_other" as TransactionCategory, label: "Other Expenses" }
   ];
 
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault();
+  useEffect(() => {
+    loadTransactions();
+  }, []);
 
-    const newTransaction = createTransaction({
-      date: new Date(formData.date),
+  const loadTransactions = async () => {
+    setLoading(true);
+    setError("");
+
+    const result = await transactionsAPI.getAll();
+
+    if (result.error) {
+      setError(result.error);
+      setLoading(false);
+      return;
+    }
+
+    if (result.data?.transactions) {
+      setTransactions(result.data.transactions);
+    }
+    setLoading(false);
+  };
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setError("");
+
+    const result = await transactionsAPI.create({
+      date: formData.date,
       description: formData.description,
       amount: parseFloat(formData.amount),
       currency: formData.currency,
       category: formData.category,
-      paymentMethod: formData.paymentMethod,
+      payment_method: formData.payment_method,
       notes: formData.notes || undefined
     });
 
-    setTransactions([newTransaction, ...transactions]);
+    if (result.error) {
+      setError(result.error);
+      setSubmitting(false);
+      return;
+    }
 
-    setFormData({
-      date: new Date().toISOString().split("T")[0],
-      description: "",
-      amount: "",
-      currency: "USD",
-      category:
-        transactionType === "income"
-          ? ("income_salary" as TransactionCategory)
-          : ("expense_food" as TransactionCategory),
-      paymentMethod: "cash",
-      notes: ""
-    });
+    if (result.data?.transaction) {
+      setTransactions([result.data.transaction, ...transactions]);
 
-    setShowForm(false);
+      setFormData({
+        date: new Date().toISOString().split("T")[0],
+        description: "",
+        amount: "",
+        currency: "USD",
+        category:
+          transactionType === "income"
+            ? ("income_salary" as TransactionCategory)
+            : ("expense_food" as TransactionCategory),
+        payment_method: "cash",
+        notes: ""
+      });
+
+      setShowForm(false);
+    }
+
+    setSubmitting(false);
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm("Are you sure you want to delete this transaction?")) {
+      return;
+    }
+
+    const result = await transactionsAPI.delete(id);
+
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+
+    setTransactions(transactions.filter((t) => t.id !== id));
   };
 
   const categories =
@@ -130,6 +179,12 @@ export function Transactions() {
             </button>
           )}
         </div>
+
+        {error && (
+          <div className="p-3 bg-danger/10 border border-danger/20 rounded-md">
+            <p className="text-sm text-danger">{error}</p>
+          </div>
+        )}
 
         {showForm && (
           <div className="card">
@@ -288,11 +343,11 @@ export function Transactions() {
                 </label>
                 <select
                   id="paymentMethod"
-                  value={formData.paymentMethod}
+                  value={formData.payment_method}
                   onChange={(e) =>
                     setFormData((prev) => ({
                       ...prev,
-                      paymentMethod: e.target.value as PaymentMethod
+                      payment_method: e.target.value as PaymentMethod
                     }))
                   }
                   className="input"
@@ -322,13 +377,18 @@ export function Transactions() {
               </div>
 
               <div className="flex space-x-3">
-                <button type="submit" className="btn btn-primary flex-1">
-                  Add Transaction
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="btn btn-primary flex-1"
+                >
+                  {submitting ? "Adding..." : "Add Transaction"}
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowForm(false)}
                   className="btn btn-outline"
+                  disabled={submitting}
                 >
                   Cancel
                 </button>
@@ -342,7 +402,13 @@ export function Transactions() {
             All Transactions
           </h3>
 
-          {transactions.length === 0 ? (
+          {loading && (
+            <div className="text-center py-12">
+              <p className="text-neutral-500">Loading transactions...</p>
+            </div>
+          )}
+
+          {!loading && transactions.length === 0 && (
             <div className="text-center py-12">
               <p className="text-neutral-500 mb-4">
                 No transactions yet. Add your first transaction to get started.
@@ -356,32 +422,55 @@ export function Transactions() {
                 </button>
               )}
             </div>
-          ) : (
+          )}
+
+          {!loading && transactions.length > 0 && (
             <div className="space-y-3">
               {transactions.map((txn) => (
                 <div
                   key={txn.id}
-                  className="flex items-center justify-between py-3 border-b border-neutral-100 last:border-0"
+                  className="flex items-center justify-between py-3 px-4 border border-neutral-100 rounded-lg hover:bg-neutral-50 transition-colors"
                 >
                   <div className="flex-1">
                     <p className="font-medium text-neutral-900">
                       {txn.description}
                     </p>
                     <p className="text-sm text-neutral-500">
-                      {formatDate(txn.date)} ·{" "}
+                      {formatDate(new Date(txn.date))} ·{" "}
                       {CATEGORY_LABELS[txn.category] || txn.category}
                     </p>
                   </div>
-                  <p
-                    className={`text-lg font-bold ${
-                      txn.category.startsWith("income_")
-                        ? "text-success"
-                        : "text-danger"
-                    }`}
-                  >
-                    {txn.category.startsWith("income_") ? "+" : "-"}
-                    {formatCurrency(txn.amount, txn.currency)}
-                  </p>
+                  <div className="flex items-center space-x-4">
+                    <p
+                      className={`text-lg font-bold ${
+                        txn.category.startsWith("income_")
+                          ? "text-success"
+                          : "text-danger"
+                      }`}
+                    >
+                      {txn.category.startsWith("income_") ? "+" : "-"}
+                      {formatCurrency(txn.amount, txn.currency)}
+                    </p>
+                    <button
+                      onClick={() => handleDelete(txn.id)}
+                      className="text-danger hover:text-red-700 p-2"
+                      title="Delete transaction"
+                    >
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

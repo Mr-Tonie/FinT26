@@ -374,7 +374,7 @@ export function SpendingChart({ currency }: SpendingChartProps) {
             }`}
             title="Bar Chart"
           >
-            Bar
+            📊 Bar
           </button>
           <button
             onClick={() => setChartType("line")}
@@ -385,7 +385,7 @@ export function SpendingChart({ currency }: SpendingChartProps) {
             }`}
             title="Line Chart"
           >
-            Line
+            📈 Line
           </button>
           <button
             onClick={() => setChartType("doughnut")}
@@ -396,7 +396,7 @@ export function SpendingChart({ currency }: SpendingChartProps) {
             }`}
             title="Doughnut Chart"
           >
-            Doughnut
+            🍩 Doughnut
           </button>
           <button
             onClick={() => setChartType("category")}
@@ -407,7 +407,7 @@ export function SpendingChart({ currency }: SpendingChartProps) {
             }`}
             title="Category Breakdown"
           >
-            Categories
+            🎯 Categories
           </button>
         </div>
       </div>
