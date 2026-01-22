@@ -1,0 +1,20 @@
+PORT=5001
+NODE_ENV=development
+JWT_SECRET=fint26-mr-tony-super-secret-key-2026
+FRONTEND_URL=http://localhost:3000
+```
+
+---
+
+## Step 8: Test the Backend!
+
+The server should auto-restart and show:
+```
+╔═══════════════════════════════════════╗
+║   FinT26 Backend API                  ║
+║   Server: http://127.0.0.1:5001      ║
+║   Environment: development            ║
+║   Database: SQLite                    ║
+╚═══════════════════════════════════════╝
+✓ Connected to SQLite database
+✓ Database tables created/verified
