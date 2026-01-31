@@ -10,6 +10,7 @@ import { Login } from "@/features/auth/Login";
 import { ForgotPassword } from "@/features/auth/ForgotPassword";
 import { ProtectedRoute } from "@/shared/components/ProtectedRoute";
 import { isAuthenticated, updateActivity } from "@/shared/utils/auth";
+import { Calendar } from "@/features/calendar/Calendar";
 
 function App() {
   const [authenticated, setAuthenticated] = useState(isAuthenticated());
@@ -63,7 +64,7 @@ function App() {
         <Route
           path="/"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute authenticated={authenticated}>
               <Dashboard />
             </ProtectedRoute>
           }
@@ -72,7 +73,7 @@ function App() {
         <Route
           path="/transactions"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute authenticated={authenticated}>
               <Transactions />
             </ProtectedRoute>
           }
@@ -81,7 +82,7 @@ function App() {
         <Route
           path="/savings"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute authenticated={authenticated}>
               <Savings />
             </ProtectedRoute>
           }
@@ -90,8 +91,17 @@ function App() {
         <Route
           path="/investments"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute authenticated={authenticated}>
               <Investments />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/calendar"
+          element={
+            <ProtectedRoute authenticated={authenticated}>
+              <Calendar />
             </ProtectedRoute>
           }
         />
@@ -99,7 +109,7 @@ function App() {
         <Route
           path="/analytics"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute authenticated={authenticated}>
               <Analytics />
             </ProtectedRoute>
           }
@@ -108,7 +118,7 @@ function App() {
         <Route
           path="/settings"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute authenticated={authenticated}>
               <Settings />
             </ProtectedRoute>
           }

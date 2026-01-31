@@ -77,80 +77,43 @@ export function Login({ onLogin }: LoginProps) {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
-    setSuccess("");
-    setLoading(true);
 
-    try {
-      if (isRegisterMode) {
-        // Registration
-        if (formData.password !== formData.confirmPassword) {
-          setError("Passwords do not match");
-          setLoading(false);
-          return;
+    if (isRegistering) {
+      // Registration
+      const result = await authAPI.register(email, password, name);
+
+      if (result.error) {
+        setError(result.error);
+      } else if (result.data?.accessToken) {
+        // Store access token
+        localStorage.setItem("auth_token", result.data.accessToken);
+
+        // Store refresh token
+        if (result.data.refreshToken) {
+          localStorage.setItem("refresh_token", result.data.refreshToken);
         }
 
-        const passwordValidation = validatePasswordStrength(formData.password);
-        if (!passwordValidation.isValid) {
-          setError(
-            passwordValidation.errors[0] || "Password is not strong enough"
-          );
-          setLoading(false);
-          return;
-        }
-
-        // Call backend API
-        const result = await authAPI.register(
-          formData.email,
-          formData.password,
-          formData.name
-        );
-
-        if (result.error) {
-          setError(result.error);
-          setLoading(false);
-          return;
-        }
-
-        setSuccess("✓ Account created successfully!");
-
-        // Check for biometric setup
-        if (
-          biometricAvailable &&
-          biometricTypes.length > 0 &&
-          result.data?.user
-        ) {
-          setJustRegisteredUserId(result.data.user.id.toString());
-          setTimeout(() => {
-            setShowBiometricSetup(true);
-            setLoading(false);
-          }, 800);
-          return;
-        }
-
-        setTimeout(() => {
-          onLogin();
-          navigate("/");
-        }, 1000);
-      } else {
-        // Login
-        const result = await authAPI.login(formData.email, formData.password);
-
-        if (result.error) {
-          setError(result.error);
-          setLoading(false);
-          return;
-        }
-
-        setSuccess("✓ Logged in successfully!");
-        setTimeout(() => {
-          onLogin();
-          navigate("/");
-        }, 500);
+        onLogin();
+        navigate("/");
       }
-    } catch (err) {
-      console.error("Auth error:", err);
-      setError("An unexpected error occurred");
-      setLoading(false);
+    } else {
+      // Login
+      const result = await authAPI.login(email, password);
+
+      if (result.error) {
+        setError(result.error);
+      } else if (result.data?.accessToken) {
+        // Store access token
+        localStorage.setItem("auth_token", result.data.accessToken);
+
+        // Store refresh token
+        if (result.data.refreshToken) {
+          localStorage.setItem("refresh_token", result.data.refreshToken);
+        }
+
+        onLogin();
+        navigate("/");
+      }
     }
   };
 

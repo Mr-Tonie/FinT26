@@ -56,7 +56,7 @@ export function Dashboard() {
     setLoading(false);
   };
 
-  // Get last 6 months of data with net cashflow
+  // Monthly data calculation
   const getMonthlyData = () => {
     const monthlyData: Record<
       string,
@@ -181,7 +181,6 @@ export function Dashboard() {
             </BarChart>
           </ResponsiveContainer>
         );
-
       case "line":
         return (
           <ResponsiveContainer width="100%" height={350}>
@@ -195,24 +194,21 @@ export function Dashboard() {
                 type="monotone"
                 dataKey="income"
                 stroke="#10b981"
-                strokeWidth={3}
+                strokeWidth={2}
                 name="Income"
               />
               <Line
                 type="monotone"
                 dataKey="expenses"
                 stroke="#ef4444"
-                strokeWidth={3}
+                strokeWidth={2}
                 name="Expenses"
               />
               <Line
                 type="monotone"
                 dataKey="netCashflow"
                 stroke="#3b82f6"
-                strokeWidth={2}
-                strokeDasharray="5 5"
-                strokeOpacity={0.5}
-                dot={false}
+                strokeWidth={3}
                 name="Net Cashflow"
               />
             </LineChart>
@@ -221,22 +217,44 @@ export function Dashboard() {
 
       case "doughnut":
         return (
-          <ResponsiveContainer width="100%" height={350}>
-            <PieChart>
-              <Pie
-                data={categoryData}
-                innerRadius={80}
-                outerRadius={120}
-                paddingAngle={5}
-                dataKey="value"
-              >
-                {categoryData.map((_, i) => (
-                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip formatter={(v: any) => formatCurrency(v, currency)} />
-            </PieChart>
-          </ResponsiveContainer>
+          <div>
+            <ResponsiveContainer width="100%" height={350}>
+              <PieChart>
+                <Pie
+                  data={categoryData}
+                  innerRadius={80}
+                  outerRadius={120}
+                  paddingAngle={5}
+                  dataKey="value"
+                >
+                  {categoryData.map((_, i) => (
+                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(v: any) => formatCurrency(v, currency)} />
+              </PieChart>
+            </ResponsiveContainer>
+
+            {/* Legend for doughnut chart */}
+            <div className="flex flex-wrap justify-center gap-4 mt-4">
+              {categoryData.map((entry, index) => (
+                <div
+                  key={`legend-${index}`}
+                  className="flex items-center gap-2"
+                >
+                  <div
+                    style={{
+                      width: 16,
+                      height: 16,
+                      backgroundColor: COLORS[index % COLORS.length],
+                      borderRadius: 4
+                    }}
+                  />
+                  <span className="text-sm text-neutral-700">{entry.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         );
 
       case "category":

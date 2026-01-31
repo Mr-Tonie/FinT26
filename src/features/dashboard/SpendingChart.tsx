@@ -294,29 +294,89 @@ export function SpendingChart({ currency }: SpendingChartProps) {
 
       case "category":
         return categoryData.length > 0 ? (
-          <div className="flex items-center justify-center">
-            <ResponsiveContainer width="100%" height={350}>
-              <PieChart>
-                <Pie
-                  data={categoryData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={80}
-                  outerRadius={130}
-                  paddingAngle={5}
-                  dataKey="value"
-                  label={(entry) =>
-                    `${entry.name}: ${formatCurrency(entry.value, currency)}`
-                  }
-                  labelLine={{ stroke: "#737373" }}
+          <div>
+            <div className="flex items-center justify-center">
+              <ResponsiveContainer width="100%" height={350}>
+                <PieChart>
+                  <Pie
+                    data={categoryData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={80}
+                    outerRadius={130}
+                    paddingAngle={5}
+                    dataKey="value"
+                    label={(entry) =>
+                      `${entry.name}: ${formatCurrency(entry.value, currency)}`
+                    }
+                    labelLine={{ stroke: "#737373" }}
+                  >
+                    {categoryData.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={
+                          COLORS.categories[index % COLORS.categories.length]
+                        }
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(value: number) =>
+                      formatCurrency(value, currency)
+                    }
+                    contentStyle={{
+                      backgroundColor: "white",
+                      border: "1px solid #d4d4d4",
+                      borderRadius: "8px",
+                      padding: "8px 12px"
+                    }}
+                  />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Custom Legend */}
+            <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-neutral-700">
+              {categoryData.map((entry, index) => (
+                <div
+                  key={`legend-${entry.name}`}
+                  className="flex items-center space-x-2"
                 >
-                  {categoryData.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={COLORS.categories[index % COLORS.categories.length]}
-                    />
-                  ))}
-                </Pie>
+                  <div
+                    className="w-4 h-4 rounded"
+                    style={{
+                      backgroundColor:
+                        COLORS.categories[index % COLORS.categories.length]
+                    }}
+                  />
+                  <span>{entry.name}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Uncomment below for horizontal bar chart alternative */}
+            {/*
+            <ResponsiveContainer width="100%" height={350}>
+              <BarChart
+                data={categoryData}
+                layout="vertical"
+                margin={{ left: 80, right: 40, top: 20, bottom: 20 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis
+                  type="number"
+                  tickFormatter={(value) => formatCurrency(value, currency)}
+                  axisLine={{ stroke: "#d4d4d4" }}
+                  tick={{ fill: "#737373", fontSize: 12 }}
+                />
+                <YAxis
+                  type="category"
+                  dataKey="name"
+                  axisLine={{ stroke: "#d4d4d4" }}
+                  tick={{ fill: "#737373", fontSize: 12 }}
+                  width={150}
+                />
                 <Tooltip
                   formatter={(value: number) => formatCurrency(value, currency)}
                   contentStyle={{
@@ -326,9 +386,14 @@ export function SpendingChart({ currency }: SpendingChartProps) {
                     padding: "8px 12px"
                   }}
                 />
-                <Legend />
-              </PieChart>
+                <Bar
+                  dataKey="value"
+                  fill={COLORS.expenses}
+                  radius={[8, 8, 8, 8]}
+                />
+              </BarChart>
             </ResponsiveContainer>
+            */}
           </div>
         ) : (
           <div className="text-center py-12 text-neutral-500">

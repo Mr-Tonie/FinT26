@@ -1,52 +1,45 @@
-/**
- * API service for backend communication
- */
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || "http://127.0.0.1:5001/api";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5001/api';
+/* ======================================================
+   Token management
+   ====================================================== */
 
-interface ApiResponse<T> {
-  data?: T;
-  error?: string;
-}
+export const getAuthToken = (): string | null => {
+  return localStorage.getItem("auth_token");
+};
 
-/**
- * Get stored auth token
- */
-function getAuthToken(): string | null {
-  return localStorage.getItem('auth_token');
-}
+export const saveAuthToken = (token: string): void => {
+  localStorage.setItem("auth_token", token);
+};
 
-/**
- * Save auth token
- */
-function saveAuthToken(token: string): void {
-  localStorage.setItem('auth_token', token);
-}
+export const removeAuthToken = (): void => {
+  localStorage.removeItem("auth_token");
+  localStorage.removeItem("refresh_token");
+};
 
-/**
- * Remove auth token
- */
-function removeAuthToken(): void {
-  localStorage.removeItem('auth_token');
-}
+export const getRefreshToken = (): string | null => {
+  return localStorage.getItem("refresh_token");
+};
 
-/**
- * Make API request
- */
+/* ======================================================
+   Generic API request
+   ====================================================== */
+
 async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
-): Promise<ApiResponse<T>> {
+): Promise<{ data?: T; error?: string }> {
   try {
     const token = getAuthToken();
-    
+
     const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-      ...options.headers,
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
     };
 
     if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+      headers["Authorization"] = `Bearer ${token}`;
     }
 
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -57,70 +50,112 @@ async function apiRequest<T>(
     const data = await response.json();
 
     if (!response.ok) {
-      return { error: data.error || 'Request failed' };
+      if (response.status === 401 && getRefreshToken()) {
+        const refreshed = await refreshAccessToken();
+        if (refreshed) {
+          return apiRequest(endpoint, options);
+        }
+      }
+
+      return { error: data?.error || "Request failed" };
     }
 
     return { data };
   } catch (error) {
-    console.error('API request error:', error);
-    return { error: 'Network error' };
+    console.error("API request error:", error);
+    return { error: "Network error" };
   }
 }
 
-/**
- * Auth API
- */
+/* ======================================================
+   Token refresh
+   ====================================================== */
+
+async function refreshAccessToken(): Promise<boolean> {
+  try {
+    const refreshToken = getRefreshToken();
+    if (!refreshToken) return false;
+
+    const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    if (!response.ok) {
+      removeAuthToken();
+      return false;
+    }
+
+    const data = await response.json();
+
+    if (data.accessToken) {
+      saveAuthToken(data.accessToken);
+      return true;
+    }
+
+    return false;
+  } catch (error) {
+    console.error("Token refresh error:", error);
+    removeAuthToken();
+    return false;
+  }
+}
+
+/* ======================================================
+   Authentication API
+   ====================================================== */
+
 export const authAPI = {
-  async register(email: string, password: string, name: string) {
-    const response = await apiRequest<{
+  register(email: string, password: string, name: string) {
+    return apiRequest<{
       message: string;
-      token: string;
       user: { id: number; email: string; name: string };
-    }>('/auth/register', {
-      method: 'POST',
+      accessToken: string;
+      refreshToken: string;
+    }>("/auth/register", {
+      method: "POST",
       body: JSON.stringify({ email, password, name }),
     });
-
-    if (response.data?.token) {
-      saveAuthToken(response.data.token);
-    }
-
-    return response;
   },
 
-  async login(email: string, password: string) {
-    const response = await apiRequest<{
+  login(email: string, password: string) {
+    return apiRequest<{
       message: string;
-      token: string;
       user: { id: number; email: string; name: string };
-    }>('/auth/login', {
-      method: 'POST',
+      accessToken: string;
+      refreshToken: string;
+    }>("/auth/login", {
+      method: "POST",
       body: JSON.stringify({ email, password }),
     });
-
-    if (response.data?.token) {
-      saveAuthToken(response.data.token);
-    }
-
-    return response;
   },
 
-  async getCurrentUser() {
+  getCurrentUser() {
     return apiRequest<{
-      user: { id: number; email: string; name: string; created_at: string };
-    }>('/auth/me');
+      user: { id: number; email: string; name: string };
+    }>("/auth/me");
   },
 
-  logout() {
+  async logout() {
+    const refreshToken = getRefreshToken();
+
+    const result = await apiRequest("/auth/logout", {
+      method: "POST",
+      body: JSON.stringify({ refreshToken }),
+    });
+
     removeAuthToken();
+    return result;
   },
 };
 
-/**
- * Transactions API
- */
+/* ======================================================
+   Transactions API
+   ====================================================== */
+
 export const transactionsAPI = {
-  async getAll() {
+  getAll() {
     return apiRequest<{
       transactions: Array<{
         id: number;
@@ -135,10 +170,10 @@ export const transactionsAPI = {
         created_at: string;
         updated_at: string;
       }>;
-    }>('/transactions');
+    }>("/transactions");
   },
 
-  async create(transaction: {
+  create(transaction: {
     date: string;
     description: string;
     amount: number;
@@ -147,22 +182,19 @@ export const transactionsAPI = {
     payment_method: string;
     notes?: string;
   }) {
-    return apiRequest<{
-      message: string;
-      transaction: any;
-    }>('/transactions', {
-      method: 'POST',
+    return apiRequest("/transactions", {
+      method: "POST",
       body: JSON.stringify(transaction),
     });
   },
 
-  async delete(id: number) {
-    return apiRequest<{ message: string }>(`/transactions/${id}`, {
-      method: 'DELETE',
+  delete(id: number) {
+    return apiRequest(`/transactions/${id}`, {
+      method: "DELETE",
     });
   },
 
-  async getStatistics() {
+  getStatistics() {
     return apiRequest<{
       statistics: {
         totalIncome: number;
@@ -170,15 +202,16 @@ export const transactionsAPI = {
         netCashflow: number;
         transactionCount: number;
       };
-    }>('/transactions/statistics');
+    }>("/transactions/statistics");
   },
 };
 
-/**
- * Savings API
- */
+/* ======================================================
+   Savings API
+   ====================================================== */
+
 export const savingsAPI = {
-  async getAll() {
+  getAll() {
     return apiRequest<{
       savingsGoals: Array<{
         id: number;
@@ -192,10 +225,10 @@ export const savingsAPI = {
         created_at: string;
         updated_at: string;
       }>;
-    }>('/savings');
+    }>("/savings");
   },
 
-  async create(goal: {
+  create(goal: {
     name: string;
     target_amount: number;
     current_amount?: number;
@@ -203,34 +236,32 @@ export const savingsAPI = {
     deadline?: string;
     description?: string;
   }) {
-    return apiRequest<{
-      message: string;
-      savingsGoal: any;
-    }>('/savings', {
-      method: 'POST',
+    return apiRequest("/savings", {
+      method: "POST",
       body: JSON.stringify(goal),
     });
   },
 
-  async update(id: number, current_amount: number) {
-    return apiRequest<{ message: string }>(`/savings/${id}`, {
-      method: 'PUT',
+  update(id: number, current_amount: number) {
+    return apiRequest(`/savings/${id}`, {
+      method: "PUT",
       body: JSON.stringify({ current_amount }),
     });
   },
 
-  async delete(id: number) {
-    return apiRequest<{ message: string }>(`/savings/${id}`, {
-      method: 'DELETE',
+  delete(id: number) {
+    return apiRequest(`/savings/${id}`, {
+      method: "DELETE",
     });
   },
 };
 
-/**
- * Investments API
- */
+/* ======================================================
+   Investments API
+   ====================================================== */
+
 export const investmentsAPI = {
-  async getAll() {
+  getAll() {
     return apiRequest<{
       investments: Array<{
         id: number;
@@ -247,10 +278,10 @@ export const investmentsAPI = {
         created_at: string;
         updated_at: string;
       }>;
-    }>('/investments');
+    }>("/investments");
   },
 
-  async create(investment: {
+  create(investment: {
     name: string;
     asset_type: string;
     risk_level: string;
@@ -261,29 +292,26 @@ export const investmentsAPI = {
     provider?: string;
     notes?: string;
   }) {
-    return apiRequest<{
-      message: string;
-      investment: any;
-    }>('/investments', {
-      method: 'POST',
+    return apiRequest("/investments", {
+      method: "POST",
       body: JSON.stringify(investment),
     });
   },
 
-  async update(id: number, current_value: number) {
-    return apiRequest<{ message: string }>(`/investments/${id}`, {
-      method: 'PUT',
+  update(id: number, current_value: number) {
+    return apiRequest(`/investments/${id}`, {
+      method: "PUT",
       body: JSON.stringify({ current_value }),
     });
   },
 
-  async delete(id: number) {
-    return apiRequest<{ message: string }>(`/investments/${id}`, {
-      method: 'DELETE',
+  delete(id: number) {
+    return apiRequest(`/investments/${id}`, {
+      method: "DELETE",
     });
   },
 
-  async getStatistics() {
+  getStatistics() {
     return apiRequest<{
       statistics: {
         totalInvested: number;
@@ -291,9 +319,6 @@ export const investmentsAPI = {
         totalGainLoss: number;
         investmentCount: number;
       };
-    }>('/investments/statistics');
+    }>("/investments/statistics");
   },
 };
-
-export { getAuthToken, saveAuthToken, removeAuthToken };
-
