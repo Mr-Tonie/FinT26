@@ -1,70 +1,60 @@
-import { useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Login } from "@/features/auth/Login";
 import { Dashboard } from "@/features/dashboard/Dashboard";
 import { Transactions } from "@/features/transactions/Transactions";
 import { Savings } from "@/features/savings/Savings";
 import { Investments } from "@/features/investments/Investments";
 import { Analytics } from "@/features/analytics/Analytics";
-import { Settings } from "@/features/settings/Settings";
-import { Login } from "@/features/auth/Login";
-import { ForgotPassword } from "@/features/auth/ForgotPassword";
-import { ProtectedRoute } from "@/shared/components/ProtectedRoute";
-import { isAuthenticated, updateActivity } from "@/shared/utils/auth";
 import { Calendar } from "@/features/calendar/Calendar";
+import { Settings } from "@/features/settings/Settings";
+import { Budgets } from "@/features/budgets/Budgets";
+import { RecurringTransactions } from "@/features/recurring/RecurringTransactions";
+import { ProtectedRoute } from "@/shared/components/ProtectedRoute";
+import { firebaseAuthService } from "@/services/firebase/auth.service";
 
 function App() {
-  const [authenticated, setAuthenticated] = useState(isAuthenticated());
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const handleActivity = () => {
-      if (isAuthenticated()) {
-        updateActivity();
-      }
-    };
+    const unsubscribe = firebaseAuthService.onAuthStateChange((user) => {
+      setIsAuthenticated(!!user);
+      setLoading(false);
+    });
 
-    window.addEventListener("mousemove", handleActivity);
-    window.addEventListener("keypress", handleActivity);
-    window.addEventListener("click", handleActivity);
-
-    const interval = setInterval(() => {
-      setAuthenticated(isAuthenticated());
-    }, 60000);
-
-    return () => {
-      window.removeEventListener("mousemove", handleActivity);
-      window.removeEventListener("keypress", handleActivity);
-      window.removeEventListener("click", handleActivity);
-      clearInterval(interval);
-    };
+    return () => unsubscribe();
   }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
+          <p className="mt-4 text-neutral-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <BrowserRouter>
       <Routes>
-        {/* Auth Routes */}
         <Route
           path="/login"
           element={
-            authenticated ? (
+            isAuthenticated ? (
               <Navigate to="/" replace />
             ) : (
-              <Login onLogin={() => setAuthenticated(true)} />
+              <Login onLogin={() => setIsAuthenticated(true)} />
             )
           }
         />
 
         <Route
-          path="/forgot-password"
-          element={
-            authenticated ? <Navigate to="/" replace /> : <ForgotPassword />
-          }
-        />
-
-        {/* Protected Routes */}
-        <Route
           path="/"
           element={
-            <ProtectedRoute authenticated={authenticated}>
+            <ProtectedRoute>
               <Dashboard />
             </ProtectedRoute>
           }
@@ -73,7 +63,7 @@ function App() {
         <Route
           path="/transactions"
           element={
-            <ProtectedRoute authenticated={authenticated}>
+            <ProtectedRoute>
               <Transactions />
             </ProtectedRoute>
           }
@@ -82,7 +72,7 @@ function App() {
         <Route
           path="/savings"
           element={
-            <ProtectedRoute authenticated={authenticated}>
+            <ProtectedRoute>
               <Savings />
             </ProtectedRoute>
           }
@@ -91,17 +81,8 @@ function App() {
         <Route
           path="/investments"
           element={
-            <ProtectedRoute authenticated={authenticated}>
+            <ProtectedRoute>
               <Investments />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/calendar"
-          element={
-            <ProtectedRoute authenticated={authenticated}>
-              <Calendar />
             </ProtectedRoute>
           }
         />
@@ -109,8 +90,35 @@ function App() {
         <Route
           path="/analytics"
           element={
-            <ProtectedRoute authenticated={authenticated}>
+            <ProtectedRoute>
               <Analytics />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/calendar"
+          element={
+            <ProtectedRoute>
+              <Calendar />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/budgets"
+          element={
+            <ProtectedRoute>
+              <Budgets />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/recurring"
+          element={
+            <ProtectedRoute>
+              <RecurringTransactions />
             </ProtectedRoute>
           }
         />
@@ -118,13 +126,12 @@ function App() {
         <Route
           path="/settings"
           element={
-            <ProtectedRoute authenticated={authenticated}>
+            <ProtectedRoute>
               <Settings />
             </ProtectedRoute>
           }
         />
 
-        {/* Catch all */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

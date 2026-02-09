@@ -12,16 +12,16 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell
+  AreaChart,
+  Area
 } from "recharts";
-import { transactionsAPI } from "@/shared/services/api";
 import { formatCurrency } from "@/shared/utils/currency";
 import { formatDate } from "@/shared/utils/date";
 import type { CurrencyCode } from "@/shared/types/financial.types";
+import { firebaseAuthService } from "@/services/firebase/auth.service";
+import { firestoreService } from "@/services/firebase/firestore.service";
 
-type ChartType = "bar" | "line" | "doughnut" | "category";
+type ChartType = "trends" | "line" | "comparison" | "monthly";
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -43,21 +43,27 @@ export function Dashboard() {
   const loadDashboardData = async () => {
     setLoading(true);
 
-    const txnResult = await transactionsAPI.getAll();
-    if (txnResult.data?.transactions) {
-      setTransactions(txnResult.data.transactions);
+    const user = firebaseAuthService.getCurrentUser();
+    if (!user) {
+      setLoading(false);
+      return;
     }
 
-    const statsResult = await transactionsAPI.getStatistics();
-    if (statsResult.data?.statistics) {
-      setStatistics(statsResult.data.statistics);
-    }
+    try {
+      const txns = await firestoreService.transactions.getAll(user.uid);
+      setTransactions(txns);
 
-    setLoading(false);
+      const stats = await firestoreService.transactions.getStatistics(user.uid);
+      setStatistics(stats);
+    } catch (error) {
+      console.error("Error loading dashboard:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Monthly data calculation
-  const getMonthlyData = () => {
+  // Get last 6 months data for trends
+  const getMonthlyTrendsData = () => {
     const monthlyData: Record<
       string,
       { income: number; expenses: number; netCashflow: number }
@@ -88,6 +94,8 @@ export function Dashboard() {
         } else {
           monthlyData[monthKey].expenses += txn.amount;
         }
+        monthlyData[monthKey].netCashflow =
+          monthlyData[monthKey].income - monthlyData[monthKey].expenses;
       }
     });
 
@@ -95,11 +103,11 @@ export function Dashboard() {
       month,
       income: monthlyData[month].income,
       expenses: monthlyData[month].expenses,
-      netCashflow: monthlyData[month].income - monthlyData[month].expenses
+      netCashflow: monthlyData[month].netCashflow
     }));
   };
 
-  /* -------------------- Category Data -------------------- */
+  // Get category breakdown
   const getCategoryData = () => {
     const totals: Record<string, number> = {};
 
@@ -110,14 +118,61 @@ export function Dashboard() {
       }
     });
 
-    return Object.entries(totals).map(([name, value]) => ({
-      name: name.charAt(0).toUpperCase() + name.slice(1),
-      value
+    return Object.entries(totals)
+      .map(([name, value]) => ({
+        name: name.charAt(0).toUpperCase() + name.slice(1).replace("_", " "),
+        value,
+        percentage: 0
+      }))
+      .sort((a, b) => b.value - a.value)
+      .map((item, index, array) => {
+        const total = array.reduce((sum, i) => sum + i.value, 0);
+        return {
+          ...item,
+          percentage: total > 0 ? (item.value / total) * 100 : 0
+        };
+      });
+  };
+
+  // Get daily spending trend for current month
+  const getSpendingTrendData = () => {
+    const dailyData: Record<string, number> = {};
+
+    // Initialize last 30 days
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const key = date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric"
+      });
+      dailyData[key] = 0;
+    }
+
+    transactions.forEach((txn) => {
+      const txnDate = new Date(txn.date);
+      const key = txnDate.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric"
+      });
+
+      if (
+        dailyData.hasOwnProperty(key) &&
+        txn.category.startsWith("expense_")
+      ) {
+        dailyData[key] += txn.amount;
+      }
+    });
+
+    return Object.entries(dailyData).map(([date, amount]) => ({
+      date,
+      amount
     }));
   };
 
-  const monthlyData = getMonthlyData();
+  const monthlyData = getMonthlyTrendsData();
   const categoryData = getCategoryData();
+  const spendingTrendData = getSpendingTrendData();
 
   const CATEGORY_LABELS: Record<string, string> = {
     income_salary: "Salary",
@@ -135,22 +190,24 @@ export function Dashboard() {
   };
 
   const COLORS = [
-    "#3b82f6",
-    "#ef4444",
-    "#10b981",
-    "#f59e0b",
-    "#8b5cf6",
-    "#ec4899",
-    "#06b6d4",
-    "#84cc16"
+    "#ef4444", // Red
+    "#f59e0b", // Orange
+    "#10b981", // Green
+    "#3b82f6", // Blue
+    "#8b5cf6", // Purple
+    "#ec4899", // Pink
+    "#06b6d4", // Cyan
+    "#84cc16" // Lime
   ];
 
-  /* -------------------- Chart Renderer -------------------- */
   const renderChart = () => {
     if (loading) {
       return (
         <div className="flex items-center justify-center h-80">
-          <p className="text-neutral-500">Loading chart data...</p>
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+            <p className="text-neutral-500">Loading chart data...</p>
+          </div>
         </div>
       );
     }
@@ -158,6 +215,7 @@ export function Dashboard() {
     if (transactions.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center h-80">
+          <div className="text-6xl mb-4">📊</div>
           <p className="text-neutral-500 mb-4">No transaction data yet</p>
           <Link to="/transactions" className="btn btn-primary">
             Add Your First Transaction
@@ -167,115 +225,202 @@ export function Dashboard() {
     }
 
     switch (selectedChart) {
-      case "bar":
-        return (
-          <ResponsiveContainer width="100%" height={350}>
-            <BarChart data={monthlyData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="income" fill="#10b981" name="Income" />
-              <Bar dataKey="expenses" fill="#ef4444" name="Expenses" />
-            </BarChart>
-          </ResponsiveContainer>
-        );
-      case "line":
-        return (
-          <ResponsiveContainer width="100%" height={350}>
-            <LineChart data={monthlyData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Line
-                type="monotone"
-                dataKey="income"
-                stroke="#10b981"
-                strokeWidth={2}
-                name="Income"
-              />
-              <Line
-                type="monotone"
-                dataKey="expenses"
-                stroke="#ef4444"
-                strokeWidth={2}
-                name="Expenses"
-              />
-              <Line
-                type="monotone"
-                dataKey="netCashflow"
-                stroke="#3b82f6"
-                strokeWidth={3}
-                name="Net Cashflow"
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        );
-
-      case "doughnut":
+      case "trends":
         return (
           <div>
+            <h4 className="text-sm font-medium text-neutral-600 mb-4">
+              Daily Spending Trend (Last 30 Days)
+            </h4>
             <ResponsiveContainer width="100%" height={350}>
-              <PieChart>
-                <Pie
-                  data={categoryData}
-                  innerRadius={80}
-                  outerRadius={120}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {categoryData.map((_, i) => (
-                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(v: any) => formatCurrency(v, currency)} />
-              </PieChart>
+              <AreaChart data={spendingTrendData}>
+                <defs>
+                  <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8} />
+                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0.1} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 12 }}
+                  interval="preserveStartEnd"
+                />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "white",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "8px"
+                  }}
+                  formatter={(value: any) => formatCurrency(value, currency)}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="amount"
+                  stroke="#ef4444"
+                  strokeWidth={2}
+                  fillOpacity={1}
+                  fill="url(#colorAmount)"
+                  name="Spending"
+                />
+              </AreaChart>
             </ResponsiveContainer>
-
-            {/* Legend for doughnut chart */}
-            <div className="flex flex-wrap justify-center gap-4 mt-4">
-              {categoryData.map((entry, index) => (
-                <div
-                  key={`legend-${index}`}
-                  className="flex items-center gap-2"
-                >
-                  <div
-                    style={{
-                      width: 16,
-                      height: 16,
-                      backgroundColor: COLORS[index % COLORS.length],
-                      borderRadius: 4
-                    }}
-                  />
-                  <span className="text-sm text-neutral-700">{entry.name}</span>
-                </div>
-              ))}
-            </div>
           </div>
         );
 
-      case "category":
+      case "line":
         return (
-          <ResponsiveContainer width="100%" height={350}>
-            <BarChart
-              data={categoryData}
-              layout="horizontal"
-              margin={{ left: 80 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" />
-              <YAxis type="category" dataKey="name" />
-              <Tooltip formatter={(v: any) => formatCurrency(v, currency)} />
-              <Bar dataKey="value">
-                {categoryData.map((_, i) => (
-                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          <div>
+            <h4 className="text-sm font-medium text-neutral-600 mb-4">
+              Income, Expenses & Net Cashflow Trends
+            </h4>
+            <ResponsiveContainer width="100%" height={350}>
+              <LineChart data={monthlyData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "white",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "8px"
+                  }}
+                  formatter={(value: any) => formatCurrency(value, currency)}
+                />
+                <Legend />
+                <Line
+                  type="monotone"
+                  dataKey="income"
+                  stroke="#10b981"
+                  strokeWidth={2}
+                  name="Income"
+                  dot={{ fill: "#10b981", r: 4 }}
+                  activeDot={{ r: 6 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="expenses"
+                  stroke="#ef4444"
+                  strokeWidth={2}
+                  name="Expenses"
+                  dot={{ fill: "#ef4444", r: 4 }}
+                  activeDot={{ r: 6 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="netCashflow"
+                  stroke="#3b82f6"
+                  strokeWidth={3}
+                  strokeDasharray="5 5"
+                  name="Net Cashflow"
+                  dot={{ fill: "#3b82f6", r: 5 }}
+                  activeDot={{ r: 7 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        );
+
+      case "comparison":
+        return (
+          <div>
+            <h4 className="text-sm font-medium text-neutral-600 mb-4">
+              Income vs Expenses Comparison
+            </h4>
+            <ResponsiveContainer width="100%" height={350}>
+              <AreaChart data={monthlyData}>
+                <defs>
+                  <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.8} />
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.1} />
+                  </linearGradient>
+                  <linearGradient
+                    id="colorExpenses"
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
+                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8} />
+                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0.1} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "white",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "8px"
+                  }}
+                  formatter={(value: any) => formatCurrency(value, currency)}
+                />
+                <Legend />
+                <Area
+                  type="monotone"
+                  dataKey="income"
+                  stroke="#10b981"
+                  strokeWidth={2}
+                  fillOpacity={1}
+                  fill="url(#colorIncome)"
+                  name="Income"
+                />
+                <Area
+                  type="monotone"
+                  dataKey="expenses"
+                  stroke="#ef4444"
+                  strokeWidth={2}
+                  fillOpacity={1}
+                  fill="url(#colorExpenses)"
+                  name="Expenses"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        );
+
+      case "monthly":
+        return (
+          <div>
+            <h4 className="text-sm font-medium text-neutral-600 mb-4">
+              Monthly Financial Summary
+            </h4>
+            <ResponsiveContainer width="100%" height={350}>
+              <BarChart data={monthlyData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "white",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "8px"
+                  }}
+                  formatter={(value: any) => formatCurrency(value, currency)}
+                />
+                <Legend />
+                <Bar
+                  dataKey="income"
+                  fill="#10b981"
+                  name="Income"
+                  radius={[8, 8, 0, 0]}
+                />
+                <Bar
+                  dataKey="expenses"
+                  fill="#ef4444"
+                  name="Expenses"
+                  radius={[8, 8, 0, 0]}
+                />
+                <Bar
+                  dataKey="netCashflow"
+                  fill="#3b82f6"
+                  name="Net Cashflow"
+                  radius={[8, 8, 0, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         );
     }
   };
@@ -304,7 +449,7 @@ export function Dashboard() {
             }`}
           >
             <h3 className="text-sm font-medium text-neutral-600 mb-2">
-              Monthly Net Cashflow
+              Net Cashflow
             </h3>
             <p
               className={`text-3xl font-bold ${
@@ -324,22 +469,22 @@ export function Dashboard() {
 
           <div className="card bg-success/5 border-success/20">
             <h3 className="text-sm font-medium text-neutral-600 mb-2">
-              Monthly Income
+              Total Income
             </h3>
             <p className="text-3xl font-bold text-success">
               {formatCurrency(statistics.totalIncome, currency)}
             </p>
-            <p className="text-sm text-neutral-500 mt-1">Current month</p>
+            <p className="text-sm text-neutral-500 mt-1">All time</p>
           </div>
 
           <div className="card bg-danger/5 border-danger/20">
             <h3 className="text-sm font-medium text-neutral-600 mb-2">
-              Monthly Expenses
+              Total Expenses
             </h3>
             <p className="text-3xl font-bold text-danger">
               {formatCurrency(statistics.totalExpenses, currency)}
             </p>
-            <p className="text-sm text-neutral-500 mt-1">Current month</p>
+            <p className="text-sm text-neutral-500 mt-1">All time</p>
           </div>
         </div>
 
@@ -353,50 +498,53 @@ export function Dashboard() {
               onClick={() => navigate("/transactions")}
               className="btn btn-primary"
             >
-              Add Transaction
+              + Add Transaction
             </button>
             <button
               onClick={() => navigate("/savings")}
               className="btn btn-secondary"
             >
-              Create Savings Goal
+              + Create Savings Goal
             </button>
             <button
               onClick={() => navigate("/investments")}
               className="btn btn-outline"
             >
-              Record Investment
+              + Record Investment
             </button>
           </div>
         </div>
 
-        {/* Charts */}
+        {/* Advanced Charts */}
         <div className="card">
-          <div className="flex justify-between mb-6">
-            <h3 className="text-lg font-semibold">Financial Trends</h3>
-            <div className="flex gap-2">
-              {(["bar", "line", "doughnut", "category"] as ChartType[]).map(
-                (t) => (
-                  <button
-                    key={t}
-                    onClick={() => setSelectedChart(t)}
-                    className={`px-4 py-2 rounded ${
-                      selectedChart === t
-                        ? "bg-primary-600 text-white"
-                        : "bg-neutral-100"
-                    }`}
-                  >
-                    {t}
-                  </button>
-                )
-              )}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            <h3 className="text-lg font-semibold">Financial Analytics</h3>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { key: "line", label: "Line Chart" },
+                { key: "trends", label: "Spending Trends" },
+                { key: "comparison", label: "Income vs Expenses" },
+                { key: "monthly", label: "Monthly Summary" }
+              ].map((chart) => (
+                <button
+                  key={chart.key}
+                  onClick={() => setSelectedChart(chart.key as ChartType)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    selectedChart === chart.key
+                      ? "bg-primary-600 text-white shadow-md"
+                      : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
+                  }`}
+                >
+                  {chart.label}
+                </button>
+              ))}
             </div>
           </div>
 
           {renderChart()}
         </div>
 
-        {/* Two-column layout for transactions and savings goals */}
+        {/* Two-column layout for transactions and top categories */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Recent transactions */}
           <div className="card">
@@ -462,23 +610,52 @@ export function Dashboard() {
             )}
           </div>
 
-          {/* Active savings goals placeholder */}
+          {/* Top spending categories */}
           <div className="card">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-neutral-900">
-                Active Savings Goals
+                Top Spending Categories
               </h3>
             </div>
 
-            <div className="text-center py-12">
-              <p className="text-neutral-500 mb-4">No savings goals yet.</p>
-              <button
-                onClick={() => navigate("/savings")}
-                className="btn btn-secondary text-sm"
-              >
-                Create First Goal
-              </button>
-            </div>
+            {categoryData.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-neutral-500 mb-4">No expense data yet.</p>
+                <button
+                  onClick={() => navigate("/transactions")}
+                  className="btn btn-secondary text-sm"
+                >
+                  Add Expense
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {categoryData.slice(0, 5).map((cat, index) => (
+                  <div key={index} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-neutral-700">
+                        {cat.name}
+                      </span>
+                      <span className="text-sm font-bold text-neutral-900">
+                        {formatCurrency(cat.value, currency)}
+                      </span>
+                    </div>
+                    <div className="w-full bg-neutral-200 rounded-full h-2">
+                      <div
+                        className="h-2 rounded-full transition-all"
+                        style={{
+                          width: `${cat.percentage}%`,
+                          backgroundColor: COLORS[index % COLORS.length]
+                        }}
+                      />
+                    </div>
+                    <p className="text-xs text-neutral-500">
+                      {cat.percentage.toFixed(1)}% of total expenses
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

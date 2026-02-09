@@ -1,22 +1,15 @@
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { ReactNode } from "react";
+import { firebaseAuthService } from "@/services/firebase/auth.service";
 
 interface ProtectedRouteProps {
   children: ReactNode;
-  authenticated: boolean;
 }
 
-export function ProtectedRoute({
-  children,
-  authenticated
-}: ProtectedRouteProps) {
-  const location = useLocation();
+export function ProtectedRoute({ children }: ProtectedRouteProps) {
+  const currentUser = firebaseAuthService.getCurrentUser();
 
-  if (!authenticated) {
-    // Prevent redirect loop if already on login
-    if (location.pathname === "/login") {
-      return <>{children}</>;
-    }
+  if (!currentUser) {
     return <Navigate to="/login" replace />;
   }
 

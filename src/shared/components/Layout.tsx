@@ -1,7 +1,6 @@
 import { ReactNode, useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { logoutUser } from "@/shared/utils/auth";
-import { authAPI } from "@/shared/services/api";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { firebaseAuthService } from "@/services/firebase/auth.service";
 
 interface LayoutProps {
   children: ReactNode;
@@ -9,21 +8,22 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   const location = useLocation();
+  const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState<{
-    id: number;
+    id: string;
     email: string;
     name: string;
   } | null>(null);
 
   useEffect(() => {
-    const fetchUser = async () => {
-      const result = await authAPI.getCurrentUser();
-      if (result.data?.user) {
-        setCurrentUser(result.data.user);
-      }
-    };
-
-    fetchUser();
+    const user = firebaseAuthService.getCurrentUser();
+    if (user) {
+      setCurrentUser({
+        id: user.uid,
+        email: user.email || "",
+        name: user.displayName || user.email || "User"
+      });
+    }
   }, []);
 
   const isActive = (path: string) => {
@@ -33,9 +33,9 @@ export function Layout({ children }: LayoutProps) {
     return location.pathname.startsWith(path);
   };
 
-  const handleLogout = () => {
-    logoutUser();
-    window.location.href = "/login";
+  const handleLogout = async () => {
+    await firebaseAuthService.logout();
+    navigate("/login");
   };
 
   return (
@@ -193,6 +193,55 @@ export function Layout({ children }: LayoutProps) {
             </svg>
             <span className="font-medium">Calendar</span>
           </Link>
+
+          <Link
+            to="/budgets"
+            className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${
+              isActive("/budgets")
+                ? "bg-primary-600 text-white shadow-md"
+                : "text-neutral-700 hover:bg-neutral-100"
+            }`}
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <span className="font-medium">Budgets</span>
+          </Link>
+
+          <Link
+            to="/recurring"
+            className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${
+              isActive("/recurring")
+                ? "bg-primary-600 text-white shadow-md"
+                : "text-neutral-700 hover:bg-neutral-100"
+            }`}
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              />
+            </svg>
+            <span className="font-medium">Recurring</span>
+          </Link>
+
           <div className="pt-4 mt-4 border-t border-neutral-200">
             <Link
               to="/settings"
