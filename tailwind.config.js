@@ -4,36 +4,25 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
-        // Primary palette - Deep blue (trust, stability)
         primary: {
-          50: '#eff6ff',
-          100: '#dbeafe',
-          200: '#bfdbfe',
-          300: '#93c5fd',
-          400: '#60a5fa',
-          500: '#3b82f6',
-          600: '#1e40af', // Primary brand colour
-          700: '#1e3a8a',
-          800: '#1e3a8a',
-          900: '#172554',
+          50: '#f0f5ff',
+          100: '#e0e9fe',
+          200: '#c1d3fe',
+          300: '#91b1fd',
+          400: '#5a87fa',
+          500: '#305cde', // Your highlight blue
+          600: '#2323ff', // Your vibrant blue
+          700: '#0F52BA', // Your Sapphire Royal blue
+          800: '#0047ab', // Your Duke/Deep blue
+          900: '#0a1d5a', // Darkest professional depth
         },
-        // Secondary palette - Muted sky blue (clarity)
-        secondary: {
-          50: '#f0f9ff',
-          100: '#e0f2fe',
-          200: '#bae6fd',
-          300: '#7dd3fc',
-          400: '#38bdf8',
-          500: '#0ea5e9',
-          600: '#0284c7',
-          700: '#0369a1',
-          800: '#075985',
-          900: '#0c4a6e',
-        },
-        // Neutral palette - Background and text
+        success: '#10b981',
+        warning: '#f59e0b',
+        danger: '#ef4444',
         neutral: {
           50: '#fafafa',
           100: '#f5f5f5',
@@ -45,20 +34,8 @@ export default {
           700: '#404040',
           800: '#262626',
           900: '#171717',
+          950: '#0a0a0a',
         },
-        // Semantic colours
-        success: '#10b981',
-        warning: '#f59e0b',
-        danger: '#ef4444',
-        info: '#3b82f6',
-      },
-      fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
-      },
-      spacing: {
-        '18': '4.5rem',
-        '88': '22rem',
-        '128': '32rem',
       },
     },
   },

@@ -9,6 +9,7 @@ import type {
 } from "@/shared/types/financial.types";
 import { firebaseAuthService } from "@/services/firebase/auth.service";
 import { firestoreService } from "@/services/firebase/firestore.service";
+import { ReceiptUpload } from "@/features/receipts/ReceiptUpload";
 
 export function Transactions() {
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -28,6 +29,8 @@ export function Transactions() {
   const [maxAmount, setMaxAmount] = useState("");
   const [showFilters, setShowFilters] = useState(false);
 
+  const [showReceiptUpload, setShowReceiptUpload] = useState(false);
+
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split("T")[0],
     description: "",
@@ -37,6 +40,19 @@ export function Transactions() {
     payment_method: "" as PaymentMethod,
     notes: ""
   });
+  const handleReceiptProcessed = (data: {
+    amount: number;
+    description: string;
+    imageUrl: string;
+  }) => {
+    setFormData({
+      ...formData,
+      amount: data.amount.toString(),
+      description: data.description
+    });
+    setShowReceiptUpload(false);
+    setShowModal(true);
+  };
 
   useEffect(() => {
     loadTransactions();
@@ -220,6 +236,20 @@ export function Transactions() {
           </button>
         </div>
 
+        <button
+          onClick={() => setShowReceiptUpload(true)}
+          className="btn btn-secondary"
+        >
+          📸 Scan Receipt
+        </button>
+
+        {showReceiptUpload && (
+          <ReceiptUpload
+            onReceiptProcessed={handleReceiptProcessed}
+            onClose={() => setShowReceiptUpload(false)}
+          />
+        )}
+
         {/* Search & Filter Bar */}
         <div className="card">
           <div className="space-y-4">
@@ -330,7 +360,7 @@ export function Transactions() {
                       <option value="all">All Methods</option>
                       <option value="Cash">Cash</option>
                       <option value="EcoCash">EcoCash</option>
-                      <option value="Onamii">Onamii</option>
+                      <option value="Omari">Omari</option>
                       <option value="Bank Transfer">Bank Transfer</option>
                       <option value="Card">Card</option>
                     </select>

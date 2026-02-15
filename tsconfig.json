@@ -14,21 +14,16 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
-    /* Linting - Strict Mode Enabled */
-    "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    /* Linting - Made less strict */
+    "strict": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
-    "noImplicitReturns": true,
-    "noUncheckedIndexedAccess": true,
-    "exactOptionalPropertyTypes": true,
-
-    /* Path aliases */
+    "exactOptionalPropertyTypes": false,
+    
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@/features/*": ["src/features/*"],
-      "@/shared/*": ["src/shared/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src"],

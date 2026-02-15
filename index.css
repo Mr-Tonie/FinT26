@@ -1,57 +1,90 @@
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+@layer base {
+  :root {
+    font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+    font-weight: 400;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
 
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  body {
+    margin: 0;
+    min-width: 320px;
+    min-height: 100vh;
+    @apply bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 transition-colors;
+  }
+
+  h1 {
+    font-size: 3.2em;
+    line-height: 1.1;
+  }
+
+  a {
+    font-weight: 500;
+    color: #0F52BA; /* Updated to Sapphire */
+    text-decoration: inherit;
+  }
+
+  a:hover {
+    color: #305cde; /* Updated to Royal Highlight */
+  }
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
+@layer components {
+  .card {
+    @apply bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl p-6 shadow-sm transition-colors;
+  }
 
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-}
+  .btn {
+    @apply px-4 py-2 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    cursor: pointer;
+  }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
+  .btn-primary {
+    @apply text-white shadow-md hover:shadow-lg;
+    background-color: #0F52BA; /* Your Professional Royal Blue */
+  }
 
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+  .btn-primary:hover {
+    background-color: #0047ab; /* Darker Duke Blue on hover */
+    border-color: #305cde;
+  }
+
+  .btn-secondary {
+    @apply bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600 text-neutral-900 dark:text-neutral-100;
+  }
+
+  .btn-outline {
+    @apply border-2 border-neutral-300 dark:border-neutral-600 hover:bg-neutral-100 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300;
+  }
+
+  .btn-outline:hover {
+    border-color: #0F52BA;
+    color: #0F52BA;
+  }
+
+  .input {
+    @apply w-full px-4 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg 
+           bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100
+           outline-none transition-colors;
+  }
+
+  .input:focus {
+    @apply ring-2 border-transparent;
+    --tw-ring-color: #305cde; /* High-quality blue ring */
+  }
+
+  .label {
+    @apply block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2;
+  }
 }
 
 @media (prefers-color-scheme: light) {
@@ -59,9 +92,11 @@ button:focus-visible {
     color: #213547;
     background-color: #ffffff;
   }
+  
   a:hover {
-    color: #747bff;
+    color: #0F52BA;
   }
+  
   button {
     background-color: #f9f9f9;
   }

@@ -125,7 +125,7 @@ export function Dashboard() {
         percentage: 0
       }))
       .sort((a, b) => b.value - a.value)
-      .map((item, index, array) => {
+      .map((item, _, array) => {
         const total = array.reduce((sum, i) => sum + i.value, 0);
         return {
           ...item,
@@ -252,7 +252,9 @@ export function Dashboard() {
                     border: "1px solid #e5e7eb",
                     borderRadius: "8px"
                   }}
-                  formatter={(value: any) => formatCurrency(value, currency)}
+                  formatter={(value: number | undefined) =>
+                    formatCurrency(value || 0, currency)
+                  }
                 />
                 <Area
                   type="monotone"
@@ -285,7 +287,9 @@ export function Dashboard() {
                     border: "1px solid #e5e7eb",
                     borderRadius: "8px"
                   }}
-                  formatter={(value: any) => formatCurrency(value, currency)}
+                  formatter={(value: number | undefined) =>
+                    formatCurrency(value || 0, currency)
+                  }
                 />
                 <Legend />
                 <Line
@@ -354,7 +358,9 @@ export function Dashboard() {
                     border: "1px solid #e5e7eb",
                     borderRadius: "8px"
                   }}
-                  formatter={(value: any) => formatCurrency(value, currency)}
+                  formatter={(value: number | undefined) =>
+                    formatCurrency(value || 0, currency)
+                  }
                 />
                 <Legend />
                 <Area
@@ -397,7 +403,9 @@ export function Dashboard() {
                     border: "1px solid #e5e7eb",
                     borderRadius: "8px"
                   }}
-                  formatter={(value: any) => formatCurrency(value, currency)}
+                  formatter={(value: number | undefined) =>
+                    formatCurrency(value || 0, currency)
+                  }
                 />
                 <Legend />
                 <Bar

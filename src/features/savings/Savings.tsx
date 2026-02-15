@@ -160,7 +160,6 @@ export function Savings() {
         ) : goals.length === 0 ? (
           <div className="card">
             <div className="text-center py-12">
-              <div className="text-6xl mb-4">🎯</div>
               <p className="text-neutral-500 mb-4">No savings goals yet</p>
               <button
                 onClick={() => setShowModal(true)}

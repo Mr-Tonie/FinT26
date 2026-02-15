@@ -1,6 +1,7 @@
 import { ReactNode, useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { firebaseAuthService } from "@/services/firebase/auth.service";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface LayoutProps {
   children: ReactNode;
@@ -9,11 +10,13 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { theme, toggleTheme } = useTheme();
   const [currentUser, setCurrentUser] = useState<{
     id: string;
     email: string;
     name: string;
   } | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   useEffect(() => {
     const user = firebaseAuthService.getCurrentUser();
@@ -39,23 +42,69 @@ export function Layout({ children }: LayoutProps) {
   };
 
   return (
-    <div className="flex h-screen bg-neutral-50">
+    <div className="flex h-screen bg-neutral-50 dark:bg-neutral-900">
+      {/* Mobile Menu Button */}
+      <button
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white dark:bg-neutral-800 rounded-lg shadow-lg"
+      >
+        <svg
+          className="w-6 h-6"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M4 6h16M4 12h16M4 18h16"
+          />
+        </svg>
+      </button>
+
+      {/* Overlay for mobile */}
+      {sidebarOpen && (
+        <div
+          className="lg:hidden fixed inset-0 bg-black/50 z-30"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-neutral-200 shadow-sm flex flex-col">
+      <aside
+        className={`
+        ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+        lg:translate-x-0
+        fixed lg:static
+        w-64 h-screen
+        bg-white dark:bg-neutral-800 
+        border-r border-neutral-200 dark:border-neutral-700 
+        shadow-sm 
+        flex flex-col
+        transition-transform duration-300
+        z-40
+      `}
+      >
         {/* Logo */}
-        <div className="p-6 border-b border-neutral-200">
-          <h1 className="text-2xl font-bold text-primary-600">FinT26</h1>
-          <p className="text-xs text-neutral-500 mt-1">Finance Intelligence</p>
+        <div className="p-6 border-b border-neutral-200 dark:border-neutral-700">
+          <h1 className="text-2xl font-bold text-primary-600 dark:text-primary-400">
+            FinT26
+          </h1>
+          <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+            Finance Intelligence
+          </p>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           <Link
             to="/"
+            onClick={() => setSidebarOpen(false)}
             className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${
               isActive("/")
                 ? "bg-primary-600 text-white shadow-md"
-                : "text-neutral-700 hover:bg-neutral-100"
+                : "text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700"
             }`}
           >
             <svg
@@ -76,10 +125,11 @@ export function Layout({ children }: LayoutProps) {
 
           <Link
             to="/transactions"
+            onClick={() => setSidebarOpen(false)}
             className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${
               isActive("/transactions")
                 ? "bg-primary-600 text-white shadow-md"
-                : "text-neutral-700 hover:bg-neutral-100"
+                : "text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700"
             }`}
           >
             <svg
@@ -100,10 +150,11 @@ export function Layout({ children }: LayoutProps) {
 
           <Link
             to="/savings"
+            onClick={() => setSidebarOpen(false)}
             className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${
               isActive("/savings")
                 ? "bg-primary-600 text-white shadow-md"
-                : "text-neutral-700 hover:bg-neutral-100"
+                : "text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700"
             }`}
           >
             <svg
@@ -124,10 +175,11 @@ export function Layout({ children }: LayoutProps) {
 
           <Link
             to="/investments"
+            onClick={() => setSidebarOpen(false)}
             className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${
               isActive("/investments")
                 ? "bg-primary-600 text-white shadow-md"
-                : "text-neutral-700 hover:bg-neutral-100"
+                : "text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700"
             }`}
           >
             <svg
@@ -148,10 +200,11 @@ export function Layout({ children }: LayoutProps) {
 
           <Link
             to="/analytics"
+            onClick={() => setSidebarOpen(false)}
             className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${
               isActive("/analytics")
                 ? "bg-primary-600 text-white shadow-md"
-                : "text-neutral-700 hover:bg-neutral-100"
+                : "text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700"
             }`}
           >
             <svg
@@ -172,10 +225,11 @@ export function Layout({ children }: LayoutProps) {
 
           <Link
             to="/calendar"
+            onClick={() => setSidebarOpen(false)}
             className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${
               isActive("/calendar")
                 ? "bg-primary-600 text-white shadow-md"
-                : "text-neutral-700 hover:bg-neutral-100"
+                : "text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700"
             }`}
           >
             <svg
@@ -196,10 +250,11 @@ export function Layout({ children }: LayoutProps) {
 
           <Link
             to="/budgets"
+            onClick={() => setSidebarOpen(false)}
             className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${
               isActive("/budgets")
                 ? "bg-primary-600 text-white shadow-md"
-                : "text-neutral-700 hover:bg-neutral-100"
+                : "text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700"
             }`}
           >
             <svg
@@ -220,10 +275,11 @@ export function Layout({ children }: LayoutProps) {
 
           <Link
             to="/recurring"
+            onClick={() => setSidebarOpen(false)}
             className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${
               isActive("/recurring")
                 ? "bg-primary-600 text-white shadow-md"
-                : "text-neutral-700 hover:bg-neutral-100"
+                : "text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700"
             }`}
           >
             <svg
@@ -242,13 +298,14 @@ export function Layout({ children }: LayoutProps) {
             <span className="font-medium">Recurring</span>
           </Link>
 
-          <div className="pt-4 mt-4 border-t border-neutral-200">
+          <div className="pt-4 mt-4 border-t border-neutral-200 dark:border-neutral-700">
             <Link
               to="/settings"
+              onClick={() => setSidebarOpen(false)}
               className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${
                 isActive("/settings")
                   ? "bg-primary-600 text-white shadow-md"
-                  : "text-neutral-700 hover:bg-neutral-100"
+                  : "text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700"
               }`}
             >
               <svg
@@ -275,25 +332,66 @@ export function Layout({ children }: LayoutProps) {
           </div>
         </nav>
 
-        {/* User Info & Logout */}
-        <div className="p-4 border-t border-neutral-200">
-          <div className="flex items-center space-x-3 mb-3 px-4 py-2 bg-neutral-50 rounded-lg">
-            <div className="w-10 h-10 bg-primary-600 rounded-full flex items-center justify-center text-white font-bold">
+        {/* Dark Mode Toggle & User Info */}
+        <div className="p-4 border-t border-neutral-200 dark:border-neutral-700 space-y-4">
+          {/* Dark Mode Toggle */}
+          <button
+            onClick={toggleTheme}
+            className="w-full flex items-center justify-between px-4 py-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+          >
+            <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+              {theme === "light" ? "Dark Mode" : "Light Mode"}
+            </span>
+            {theme === "light" ? (
+              <svg
+                className="w-5 h-5 text-neutral-600 dark:text-neutral-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+                />
+              </svg>
+            ) : (
+              <svg
+                className="w-5 h-5 text-neutral-600 dark:text-neutral-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+                />
+              </svg>
+            )}
+          </button>
+
+          {/* User Info */}
+          <div className="flex items-center space-x-3 px-4 py-2 bg-neutral-50 dark:bg-neutral-700 rounded-lg">
+            <div className="w-10 h-10 bg-primary-600 dark:bg-primary-500 rounded-full flex items-center justify-center text-white font-bold">
               {currentUser?.name?.charAt(0).toUpperCase() || "U"}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-neutral-900 truncate">
+              <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate">
                 {currentUser?.name || "User"}
               </p>
-              <p className="text-xs text-neutral-500 truncate">
+              <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate">
                 {currentUser?.email || "Loading..."}
               </p>
             </div>
           </div>
 
+          {/* Logout */}
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center space-x-2 px-4 py-2 text-danger hover:bg-danger/10 rounded-lg transition-colors"
+            className="w-full flex items-center justify-center space-x-2 px-4 py-2 text-danger hover:bg-danger/10 dark:hover:bg-danger/20 rounded-lg transition-colors"
           >
             <svg
               className="w-5 h-5"
@@ -315,7 +413,9 @@ export function Layout({ children }: LayoutProps) {
 
       {/* Main Content */}
       <main className="flex-1 overflow-auto">
-        <div className="max-w-7xl mx-auto px-6 py-8">{children}</div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {children}
+        </div>
       </main>
     </div>
   );

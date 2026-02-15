@@ -11,8 +11,7 @@ import {
   Timestamp,
   serverTimestamp,
 } from 'firebase/firestore';
-import { db } from '../../config/firebase';
-
+import { db } from '@/config/firebase';
 
 export const firestoreService = {
   // Transactions
@@ -47,6 +46,7 @@ export const firestoreService = {
           userId,
           date: Timestamp.fromDate(new Date(transaction.date)),
           amount: parseFloat(transaction.amount),
+          receiptUrl: transaction.receiptUrl || null,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
@@ -286,6 +286,7 @@ export const firestoreService = {
         const docRef = await addDoc(collection(db, 'budgets'), {
           ...budget,
           userId,
+          limit: parseFloat(budget.limit),
           startDate: serverTimestamp(),
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
@@ -306,8 +307,6 @@ export const firestoreService = {
         throw error;
       }
     },
-
-    
   },
 
   // Recurring Transactions
@@ -371,88 +370,6 @@ export const firestoreService = {
         console.error('Error toggling recurring transaction:', error);
         throw error;
       }
-    },
-
-    async processNow(userId: string, recurringId: string) {
-      try {
-        // Get recurring transaction
-        const recurringDoc = await getDocs(query(
-          collection(db, 'recurring_transactions'),
-          where('__name__', '==', recurringId)
-        ));
-        
-        if (recurringDoc.empty) throw new Error('Recurring transaction not found');
-        
-        const recurring = recurringDoc.docs[0].data();
-        
-        // Create actual transaction
-        await addDoc(collection(db, 'transactions'), {
-          userId,
-          date: serverTimestamp(),
-          description: recurring.description,
-          amount: recurring.amount,
-          currency: recurring.currency,
-          category: recurring.category,
-          payment_method: recurring.paymentMethod,
-          notes: `Auto-generated from recurring: ${recurring.description}`,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-        
-        // Calculate next date
-        const nextDate = this.calculateNextDate(new Date(), recurring.frequency);
-        
-        // Update recurring transaction
-        await updateDoc(doc(db, 'recurring_transactions', recurringId), {
-          lastProcessed: serverTimestamp(),
-          nextDate: Timestamp.fromDate(nextDate),
-          updatedAt: serverTimestamp(),
-        });
-      } catch (error) {
-        console.error('Error processing recurring transaction:', error);
-        throw error;
-      }
-    },
-
-    async processAllDue(userId: string) {
-      try {
-        const allRecurring = await this.getAll(userId);
-        const today = new Date();
-        let count = 0;
-        
-        for (const recurring of allRecurring) {
-          if (recurring.active && new Date(recurring.nextDate) <= today) {
-            await this.processNow(userId, recurring.id);
-            count++;
-          }
-        }
-        
-        return count;
-      } catch (error) {
-        console.error('Error processing all due transactions:', error);
-        throw error;
-      }
-    },
-
-    calculateNextDate(currentDate: Date, frequency: string): Date {
-      const next = new Date(currentDate);
-      
-      switch (frequency) {
-        case 'daily':
-          next.setDate(next.getDate() + 1);
-          break;
-        case 'weekly':
-          next.setDate(next.getDate() + 7);
-          break;
-        case 'monthly':
-          next.setMonth(next.getMonth() + 1);
-          break;
-        case 'yearly':
-          next.setFullYear(next.getFullYear() + 1);
-          break;
-      }
-      
-      return next;
     },
 
     async delete(recurringId: string) {

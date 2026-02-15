@@ -1,13 +1,14 @@
+const db = require('../config/database');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const db = require('../config/database');
-const { JWT_SECRET } = require('../middleware/auth');
+
+const JWT_SECRET = process.env.JWT_SECRET || 'fint26-mr-tony-super-secret-key-2026';
 
 // Register new user
 exports.register = async (req, res) => {
-  try {
-    const { email, password, name } = req.body;
+  const { email, password, name } = req.body;
 
+  try {
     if (!email || !password || !name) {
       return res.status(400).json({ error: 'All fields are required' });
     }
@@ -16,100 +17,102 @@ exports.register = async (req, res) => {
       return res.status(400).json({ error: 'Password must be at least 8 characters' });
     }
 
-    db.get('SELECT id FROM users WHERE email = ?', [email.toLowerCase()], async (err, row) => {
-      if (err) {
-        console.error('Database error:', err);
-        return res.status(500).json({ error: 'Database error' });
-      }
-
-      if (row) {
-        return res.status(400).json({ error: 'User already exists' });
-      }
-
-      const passwordHash = await bcrypt.hash(password, 10);
-
-      db.run(
-        'INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)',
-        [email.toLowerCase(), passwordHash, name],
-        function(err) {
-          if (err) {
-            console.error('Insert error:', err);
-            return res.status(500).json({ error: 'Failed to create user' });
-          }
-
-          const token = jwt.sign(
-            { userId: this.lastID, email: email.toLowerCase() },
-            JWT_SECRET,
-            { expiresIn: '7d' }
-          );
-
-          res.status(201).json({
-            message: 'User registered successfully',
-            token,
-            user: {
-              id: this.lastID,
-              email: email.toLowerCase(),
-              name
-            }
-          });
-        }
-      );
-    });
-  } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ error: 'Server error' });
-  }
-};
-
-// Login user
-exports.login = async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
-    }
-
+    // Check if user exists
     db.get(
-      'SELECT * FROM users WHERE email = ?',
+      'SELECT id FROM users WHERE email = ?',
       [email.toLowerCase()],
-      async (err, user) => {
+      async (err, existing) => {
         if (err) {
           console.error('Database error:', err);
           return res.status(500).json({ error: 'Database error' });
         }
 
-        if (!user) {
-          return res.status(401).json({ error: 'Invalid credentials' });
+        if (existing) {
+          return res.status(409).json({ error: 'Email already registered' });
         }
 
-        const isValidPassword = await bcrypt.compare(password, user.password_hash);
+        // Hash password
+        const passwordHash = await bcrypt.hash(password, 10);
 
-        if (!isValidPassword) {
-          return res.status(401).json({ error: 'Invalid credentials' });
-        }
+        // Create user
+        db.run(
+          `INSERT INTO users (email, password_hash, name)
+           VALUES (?, ?, ?)`,
+          [email.toLowerCase(), passwordHash, name],
+          function(err) {
+            if (err) {
+              console.error('Insert error:', err);
+              return res.status(500).json({ error: 'Registration failed' });
+            }
 
-        const token = jwt.sign(
-          { userId: user.id, email: user.email },
-          JWT_SECRET,
-          { expiresIn: '7d' }
-        );
+            const userId = this.lastID;
 
-        res.json({
-          message: 'Login successful',
-          token,
-          user: {
-            id: user.id,
-            email: user.email,
-            name: user.name
+            // Generate token
+            const token = jwt.sign({ userId }, JWT_SECRET, { expiresIn: '7d' });
+
+            res.status(201).json({
+              message: 'User registered successfully',
+              user: {
+                id: userId,
+                email: email.toLowerCase(),
+                name,
+              },
+              accessToken: token,
+              refreshToken: token, // Same for now
+            });
           }
-        });
+        );
       }
     );
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: 'Server error' });
+    console.error('Registration error:', error);
+    res.status(500).json({ error: 'Registration failed' });
   }
+};
+
+// Login user
+exports.login = (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password required' });
+  }
+
+  db.get(
+    'SELECT id, email, password_hash, name FROM users WHERE email = ?',
+    [email.toLowerCase()],
+    async (err, user) => {
+      if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: 'Database error' });
+      }
+
+      if (!user) {
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+
+      // Verify password
+      const validPassword = await bcrypt.compare(password, user.password_hash);
+
+      if (!validPassword) {
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+
+      // Generate token
+      const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' });
+
+      res.json({
+        message: 'Login successful',
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+        },
+        accessToken: token,
+        refreshToken: token, // Same for now
+      });
+    }
+  );
 };
 
 // Get current user
